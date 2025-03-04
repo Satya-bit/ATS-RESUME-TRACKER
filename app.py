@@ -44,6 +44,9 @@ Give me the percentage of match if the resume matches the job description. First
 """
 
 def process_resume(job_description, uploaded_file, option):
+    if not job_description.strip():
+        return "Please provide the job description."
+
     if uploaded_file is not None:
         pdf_text = extract_pdf_text(uploaded_file)
         if option == "Resume Evaluation":
@@ -101,6 +104,7 @@ with gr.Blocks(css="""
     submit_button.click(process_resume, inputs=[job_description, uploaded_file, option], outputs=output)
 
 demo.launch(debug=True, server_port=7860)
+
 
 
 
