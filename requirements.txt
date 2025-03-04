@@ -3,4 +3,4 @@ google-generativeai
 python-dotenv
 pdf2image
 gradio
-pdfminer
+pdfminer.six
