@@ -4,37 +4,22 @@ import os
 import base64
 import io
 from dotenv import load_dotenv
-from PIL import Image
-import pdf2image
+from pdfminer.high_level import extract_text
 import google.generativeai as genai
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_gemini_response(input_text, pdf_content, prompt):
+def get_gemini_response(input_text, pdf_text, prompt):
     model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content([input_text, pdf_content[0], prompt])
+    response = model.generate_content([input_text, pdf_text, prompt])
     return response.text
 
-def input_pdf_setup(uploaded_file):
+def extract_pdf_text(uploaded_file):
     if uploaded_file is not None:
         file_path = uploaded_file.name  
-        with open(file_path, "rb") as f:
-            images = pdf2image.convert_from_bytes(f.read())  
-        
-        first_page = images[0]
-        
-        img_byte_arr = io.BytesIO()
-        first_page.save(img_byte_arr, format="JPEG")
-        img_byte_arr = img_byte_arr.getvalue()
-
-        pdf_parts = [
-            {
-                "mime_type": "image/jpeg",
-                "data": base64.b64encode(img_byte_arr).decode()
-            }
-        ]
-        return pdf_parts
+        pdf_text = extract_text(file_path)  # Extract text from the PDF
+        return pdf_text
     else:
         raise FileNotFoundError("File not uploaded")
 
@@ -60,13 +45,13 @@ Give me the percentage of match if the resume matches the job description. First
 
 def process_resume(job_description, uploaded_file, option):
     if uploaded_file is not None:
-        pdf_content = input_pdf_setup(uploaded_file)
+        pdf_text = extract_pdf_text(uploaded_file)
         if option == "Resume Evaluation":
-            response = get_gemini_response(job_description, pdf_content, input_prompt1)
+            response = get_gemini_response(job_description, pdf_text, input_prompt1)
         elif option == "Missing Keywords":
-            response = get_gemini_response(job_description, pdf_content, input_prompt2)
+            response = get_gemini_response(job_description, pdf_text, input_prompt2)
         elif option == "Percentage Match":
-            response = get_gemini_response(job_description, pdf_content, input_prompt3)
+            response = get_gemini_response(job_description, pdf_text, input_prompt3)
         else:
             response = "Invalid option selected."
         return response
@@ -103,20 +88,20 @@ with gr.Blocks(css="""
         text-align: center;
     }
 """) as demo:
-    gr.Markdown("# ATS Resume Expert",elem_id="head")
-    gr.Markdown("Upload your resume and job description to analyze how well it matches the job requirements.",elem_id="head2")
+    gr.Markdown("# ATS Resume Expert", elem_id="head")
+    gr.Markdown("Upload your resume and job description to analyze how well it matches the job requirements.", elem_id="head2")
     
     job_description = gr.TextArea(label="Job Description")
     uploaded_file = gr.File(label="Upload your resume (PDF)")
     option = gr.Radio(["Resume Evaluation", "Missing Keywords", "Percentage Match"], label="Select Analysis Type")
     
-    submit_button = gr.Button("Analyze Resume",elem_id="submit")
+    submit_button = gr.Button("Analyze Resume", elem_id="submit")
     output = gr.Markdown(label="Response")
 
-    # Remove loading text logic
     submit_button.click(process_resume, inputs=[job_description, uploaded_file, option], outputs=output)
 
 demo.launch(debug=True, server_port=7860)
+
 
 
 
